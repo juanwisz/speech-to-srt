@@ -1,0 +1,37 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Downloaded files
+downloads/
+*.mp3
+*.mp4
+*.wav
+*.m4a
+
+# Generated files
+*.srt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# API keys and secrets
+.env
+*.key
+credentials.json

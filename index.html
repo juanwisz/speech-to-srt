@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to SRT</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input[type="password"], input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .file-upload {
+            border: 3px dashed #e0e0e0;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f9f9f9;
+        }
+        .file-upload:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        .file-upload.dragover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        .file-name {
+            margin-top: 10px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f0f0ff;
+            border-radius: 8px;
+        }
+        .download-btn {
+            background: #28a745;
+            margin-top: 15px;
+        }
+        .error {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #ffe0e0;
+            border-left: 4px solid #dc3545;
+            border-radius: 4px;
+            color: #dc3545;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .small-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Speech to SRT</h1>
+        <p class="subtitle">Convert audio/video to subtitles. File never leaves your computer.</p>
+
+        <div class="input-group">
+            <label>OpenAI API Key</label>
+            <input type="password" id="apiKey" placeholder="sk-proj-...">
+            <p class="small-text">Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></p>
+        </div>
+
+        <div class="input-group">
+            <label>Model</label>
+            <select id="model">
+                <option value="whisper-1">whisper-1 (Best for SRT with timestamps)</option>
+                <option value="gpt-4o-transcribe">gpt-4o-transcribe (Best quality)</option>
+                <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe (Fast & cheap)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Language (optional)</label>
+            <input type="text" id="language" placeholder="en, es, fr... (leave empty for auto-detect)">
+        </div>
+
+        <div class="file-upload" id="fileUpload">
+            <input type="file" id="fileInput" accept="audio/*,video/*" style="display:none">
+            <div>📁 Click or drag audio/video file here</div>
+            <div class="small-text">Max 25 MB • MP3, MP4, WAV, M4A, etc.</div>
+            <div class="file-name" id="fileName"></div>
+        </div>
+
+        <button id="convertBtn" disabled>🚀 Generate SRT</button>
+
+        <div class="progress" id="progress">
+            <div class="spinner"></div>
+            <div>Transcribing... This may take a few minutes.</div>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result" id="result">
+            <div>✅ Transcription complete!</div>
+            <button class="download-btn" id="downloadBtn">⬇️ Download SRT</button>
+        </div>
+
+        <div class="info">
+            <strong>Privacy:</strong> Your file is processed directly in your browser and sent to OpenAI's API. It never touches our server.<br>
+            <strong>Cost:</strong> ~$0.006/minute (~$0.10 for 16 min)
+        </div>
+    </div>
+
+    <script>
+        const fileUpload = document.getElementById('fileUpload');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const convertBtn = document.getElementById('convertBtn');
+        const apiKeyInput = document.getElementById('apiKey');
+        const modelSelect = document.getElementById('model');
+        const languageInput = document.getElementById('language');
+        const progress = document.getElementById('progress');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let selectedFile = null;
+        let srtContent = '';
+
+        // File upload handlers
+        fileUpload.addEventListener('click', () => fileInput.click());
+
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (file.size > 25 * 1024 * 1024) {
+                showError('File too large. Maximum size is 25 MB.');
+                return;
+            }
+            selectedFile = file;
+            fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            updateButton();
+        }
+
+        apiKeyInput.addEventListener('input', updateButton);
+
+        function updateButton() {
+            convertBtn.disabled = !selectedFile || !apiKeyInput.value.trim();
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const model = modelSelect.value;
+            const language = languageInput.value.trim();
+
+            if (!selectedFile || !apiKey) return;
+
+            error.style.display = 'none';
+            result.style.display = 'none';
+            progress.style.display = 'block';
+            convertBtn.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('model', model);
+                if (language) formData.append('language', language);
+
+                if (model === 'whisper-1') {
+                    formData.append('response_format', 'verbose_json');
+                    formData.append('timestamp_granularities[]', 'segment');
+                } else {
+                    formData.append('response_format', 'text');
+                }
+
+                const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Transcription failed');
+                }
+
+                const data = await response.json();
+
+                if (model === 'whisper-1') {
+                    srtContent = generateSRT(data.segments);
+                } else {
+                    const text = typeof data === 'string' ? data : data.text;
+                    srtContent = `1\n00:00:00,000 --> 00:00:00,000\n${text}\n\n`;
+                }
+
+                progress.style.display = 'none';
+                result.style.display = 'block';
+
+            } catch (err) {
+                progress.style.display = 'none';
+                showError(err.message);
+                convertBtn.disabled = false;
+            }
+        });
+
+        function generateSRT(segments) {
+            return segments.map((segment, index) => {
+                const start = formatTimestamp(segment.start);
+                const end = formatTimestamp(segment.end);
+                const text = segment.text.trim();
+                return `${index + 1}\n${start} --> ${end}\n${text}\n`;
+            }).join('\n');
+        }
+
+        function formatTimestamp(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            const ms = Math.floor((seconds % 1) * 1000);
+            return `${pad(hours)}:${pad(minutes)}:${pad(secs)},${pad(ms, 3)}`;
+        }
+
+        function pad(num, size = 2) {
+            return num.toString().padStart(size, '0');
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            const blob = new Blob([srtContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = selectedFile.name.replace(/\.[^/.]+$/, '') + '.srt';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        function showError(message) {
+            error.textContent = `❌ ${message}`;
+            error.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
